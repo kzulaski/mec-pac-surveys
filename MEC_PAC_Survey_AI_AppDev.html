@@ -1248,72 +1248,74 @@ async function submitSurvey() {
   document.getElementById('sig-date').classList.toggle('error', !sigDate);
   if (!sigName || !sigDate) return;
 
-  // Gather all responses
-  const q4labels = { high:'High demand', moderate:'Moderate demand', low:'Low demand', none:'No demand' };
-  const titles = getCheckedTitles();
-  const pacCats = getPacCategories();
-
-  const payload = {
-    // Respondent info
-    _subject: `PAC Survey Response — ${document.getElementById('resp-name').value} (${document.getElementById('resp-company').value})`,
-    name:           document.getElementById('resp-name').value,
-    title:          document.getElementById('resp-title').value,
-    company:        document.getElementById('resp-company').value,
-    business_type:  document.getElementById('resp-biztype').value,
-    phone:          document.getElementById('resp-phone').value,
-    email:          document.getElementById('resp-email').value,
-    address:        [document.getElementById('resp-addr1').value, document.getElementById('resp-addr2').value].filter(Boolean).join(', '),
-    pac_categories: pacCats.join('; '),
-    acknowledged_by: sigName,
-    date:           sigDate,
-
-    // Step 2
-    program_materials_reviewed: getRadio('reviewed') === 'yes' ? 'Yes — recalled reviewing materials' : 'No — insufficient recollection',
-
-    // Step 3 — ACCET
-    q1_curriculum_sufficient:   getRadio('q1') === 'yes' ? 'Yes' : 'No',
-    q1_explanation:             document.getElementById('q1-explain').value,
-    q2_recommended_changes:     document.getElementById('q2-answer').value,
-    q3_other_requirements:      getRadio('q3') === 'yes' ? 'Yes' : 'No',
-    q3_requirements_identified: document.getElementById('q3-explain').value,
-    q4_projected_demand:        q4labels[getRadio('q4')] || '',
-    q5_job_titles:              titles.join('; '),
-    q5_additional_titles:       document.getElementById('q5-additional').value,
-
-    // Step 4 — ACCSC
-    pac_a_objectives_length:    document.getElementById('pac-a').value,
-    pac_b_curriculum_content:   document.getElementById('pac-b').value,
-    pac_c_resources_equipment:  document.getElementById('pac-c').value,
-    pac_d_employment_outcomes:  document.getElementById('pac-d').value,
-    pac_e_distance_education:   document.getElementById('pac-e').value,
-    pac_e_de_experience:        getRadio('de-exp') === 'yes' ? 'Yes' : getRadio('de-exp') === 'no' ? 'No' : '',
-    pac_f_student_services:     getRadio('pac-f') === 'yes' ? 'Yes — appropriate and sufficient' : getRadio('pac-f') === 'no' ? 'No — concerns noted' : '',
-    pac_f_concerns:             document.getElementById('pac-f-comments').value,
-    pac_f_additional_comments:  document.getElementById('pac-f-optional').value,
-    guest_speaker_interest:     getRadio('speaker') === 'yes' ? 'Yes' : getRadio('speaker') === 'maybe' ? 'Maybe' : getRadio('speaker') === 'no' ? 'Not at this time' : '',
-    guest_speaker_details:      document.getElementById('speaker-details').value,
-  };
-
   // Show a submitting state
   const submitBtn = document.querySelector('.btn-gold');
   submitBtn.textContent = 'Submitting…';
   submitBtn.disabled = true;
+
+  // Bundle all responses into readable text for JotForm
+  const q4labels = { high:'High demand', moderate:'Moderate demand', low:'Low demand', none:'No demand' };
+  const responseText = [
+    '=== RESPONDENT INFO ===',
+    'Name: ' + document.getElementById('resp-name').value,
+    'Title: ' + document.getElementById('resp-title').value,
+    'Company: ' + document.getElementById('resp-company').value,
+    'Business Type: ' + document.getElementById('resp-biztype').value,
+    'Phone: ' + document.getElementById('resp-phone').value,
+    'Email: ' + document.getElementById('resp-email').value,
+    'Address: ' + [document.getElementById('resp-addr1').value, document.getElementById('resp-addr2').value].filter(Boolean).join(', '),
+    'PAC Categories: ' + getPacCategories().join('; '),
+    'Acknowledged By: ' + document.getElementById('sig-name').value,
+    'Date: ' + document.getElementById('sig-date').value,
+    '',
+    '=== PROGRAM MATERIALS ===',
+    'Reviewed: ' + (getRadio('reviewed') === 'yes' ? 'Yes — recalled reviewing materials' : 'No — insufficient recollection'),
+    '',
+    '=== ACCET DOC 25.3 — EMPLOYER QUESTIONNAIRE ===',
+    'Q1 Curriculum Sufficient: ' + (getRadio('q1') === 'yes' ? 'Yes' : 'No'),
+    'Q1 Explanation: ' + document.getElementById('q1-explain').value,
+    'Q2 Recommended Changes: ' + document.getElementById('q2-answer').value,
+    'Q3 Other Requirements: ' + (getRadio('q3') === 'yes' ? 'Yes' : 'No'),
+    'Q3 Requirements Identified: ' + document.getElementById('q3-explain').value,
+    'Q4 Projected Demand: ' + (q4labels[getRadio('q4')] || ''),
+    'Q5 Job Titles: ' + getCheckedTitles().join('; '),
+    'Q5 Additional Titles: ' + document.getElementById('q5-additional').value,
+    '',
+    '=== ACCSC APPENDIX III — PAC REVIEW ===',
+    'A - Objectives & Length: ' + document.getElementById('pac-a').value,
+    'B - Curriculum Content: ' + document.getElementById('pac-b').value,
+    'C - Resources & Equipment: ' + document.getElementById('pac-c').value,
+    'D - Employment Outcomes: ' + document.getElementById('pac-d').value,
+    'E - Distance Education: ' + document.getElementById('pac-e').value,
+    'E - DE Experience: ' + (getRadio('de-exp') === 'yes' ? 'Yes' : getRadio('de-exp') === 'no' ? 'No' : ''),
+    'F - Student Services: ' + (getRadio('pac-f') === 'yes' ? 'Yes — appropriate and sufficient' : getRadio('pac-f') === 'no' ? 'No — concerns noted' : ''),
+    'F - Concerns: ' + document.getElementById('pac-f-comments').value,
+    'F - Additional Comments: ' + document.getElementById('pac-f-optional').value,
+    '',
+    '=== GUEST SPEAKER ===',
+    'Interest: ' + (getRadio('speaker') === 'yes' ? 'Yes' : getRadio('speaker') === 'maybe' ? 'Maybe' : getRadio('speaker') === 'no' ? 'Not at this time' : ''),
+    'Topics/Format: ' + document.getElementById('speaker-details').value,
+  ].join('\n');
+
+  // Submit to JotForm as form data
+  const formData = new FormData();
+  formData.append('formID', '261537330583053');
+  formData.append('input_4', responseText);
 
   // Timeout after 10 seconds
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
-    const response = await fetch('https://formspree.io/f/xkoawjev', {
+    await fetch('https://submit.jotform.com/submit/261537330583053/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(payload),
-      mode: 'cors',
+      body: formData,
+      mode: 'no-cors',
       signal: controller.signal
     });
     clearTimeout(timeout);
 
-    // Treat any response as success — Formspree has already received it
+    // no-cors means we can't read the response, but JotForm received it
     document.getElementById('card-review-header').style.display = 'none';
     document.getElementById('step-review').classList.remove('active');
     document.getElementById('step-thanks').classList.add('active');
@@ -1324,7 +1326,7 @@ async function submitSurvey() {
   } catch (err) {
     clearTimeout(timeout);
     if (err.name === 'AbortError') {
-      // Timed out — but Formspree may have still received it
+      // Timed out but JotForm likely received it — proceed to thank you
       document.getElementById('card-review-header').style.display = 'none';
       document.getElementById('step-review').classList.remove('active');
       document.getElementById('step-thanks').classList.add('active');
